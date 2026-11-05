@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BLIND WALK 3D</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
         /* UI 공통 */
@@ -13,12 +13,10 @@
         h1 { font-size: 3rem; margin-bottom: 10px; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
         h2 { font-size: 1.5rem; margin-bottom: 30px; font-weight: 300; color: #aaa; }
         p { font-size: 1.2rem; line-height: 1.6; margin-bottom: 40px; max-width: 600px; word-break: keep-all; }
-        button { padding: 15px 40px; font-size: 1.2rem; cursor: pointer; background: transparent; color: #0ff; border: 2px solid #0ff; border-radius: 5px; transition: all 0.3s ease; text-transform: uppercase; font-weight: bold; }
-        button:hover { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
         
-        /* 토글 버튼 (부가 기능) */
-        .toggle-btn { margin-top: 20px; padding: 10px 20px; font-size: 1rem; color: #aaa; border: 1px solid #aaa; }
-        .toggle-btn:hover { background: #333; color: #fff; box-shadow: 0 0 10px #aaa; }
+        /* START 버튼 */
+        .primary-btn { padding: 15px 40px; font-size: 1.2rem; cursor: pointer; background: transparent; color: #0ff; border: 2px solid #0ff; border-radius: 5px; transition: all 0.3s ease; text-transform: uppercase; font-weight: bold; margin-bottom: 20px; }
+        .primary-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
 
         /* HUD */
         #hud { position: absolute; top: 20px; left: 20px; color: #fff; z-index: 5; pointer-events: none; }
@@ -40,14 +38,12 @@
 
     <!-- HUD -->
     <div id="hud">
-        <div class="hud-item">W,A,S,D (또는 터치 조이스틱) : 이동</div>
-        <div class="hud-item">마우스 (또는 우측 화면 터치) : 시점 및 지팡이 조작</div>
-        <div class="hud-item">ESC : 메뉴 / 일시정지 (모드 변경)</div>
-        <div class="hud-item" id="mode-status">학습 모드 (기억 유지) : OFF [단축키: M]</div>
+        <div class="hud-item" id="hud-move">W,A,S,D : 이동 (터치하면 자동 전환)</div>
+        <div class="hud-item" id="hud-look">마우스 : 시점 및 지팡이 조작</div>
     </div>
     <div id="crosshair"></div>
 
-    <!-- 모바일 컨트롤 -->
+    <!-- 모바일 컨트롤 (버튼 없이 터치 시 자동 활성화) -->
     <div id="joystick-zone"><div id="joystick-knob"></div></div>
     <div id="touch-pad"></div>
 
@@ -56,27 +52,25 @@
         <h1>BLIND WALK 3D</h1>
         <h2>Explore the world through a white cane.</h2>
         <p>당신은 지금 시각적 정보가 제한된 환경에서 길을 찾아야 합니다.<br>흰 지팡이를 움직여 주변 장애물과 구조물을 파악하세요.</p>
-        <button id="start-btn">START</button>
-        <button id="toggle-control-start" class="toggle-btn">터치 컨트롤(태블릿/모바일) 강제 켜기</button>
+        <button id="start-btn" class="primary-btn">START</button>
     </div>
 
     <!-- 종료/일시정지 화면 -->
     <div id="end-screen" class="overlay" style="display: none;">
         <h1>탐색 일시정지</h1>
-        <p>"당신은 주변의 모든 장애물을 발견했나요?"<br><br>지팡이가 닿기 전에는 발견하기 어려운 물체도 존재합니다.<br>이러한 한계를 보완할 방법은 무엇일까요?</p>
-        <button id="resume-btn">계속하기</button>
-        <button id="restart-btn" style="margin-top: 15px;">처음부터 재시작</button>
-        <button id="toggle-control-pause" class="toggle-btn">터치 컨트롤(태블릿/모바일) 강제 켜기</button>
+        <p>"당신은 주변의 모든 장애물을 발견했나요?"</p>
+        <button id="resume-btn" class="primary-btn">계속하기</button>
+        <button id="restart-btn" class="primary-btn" style="margin-bottom: 20px;">처음부터 재시작</button>
     </div>
 
-    <!-- Three.js 및 Post Processing 라이브러리 (ES Modules) -->
+    <!-- Three.js 라이브러리 -->
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
         import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
         import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
         import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
 
-        // --- 1. 기본 설정 (Scene, Camera, Renderer) ---
+        // 1. 기본 설정
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x050505);
         scene.fog = new THREE.Fog(0x050505, 2, 15);
@@ -89,7 +83,7 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 후처리 (Outline Effect) ---
+        // 2. 후처리
         const composer = new EffectComposer(renderer);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
@@ -102,7 +96,7 @@
         outlinePass.hiddenEdgeColor.set('#005555');
         composer.addPass(outlinePass);
 
-        // --- 3. 오디오 시스템 (Web Audio API) ---
+        // 3. 오디오 시스템
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
         
@@ -157,7 +151,7 @@
             }
         }
 
-        // --- 4. 맵 구성 ---
+        // 4. 맵 구성
         const interactableObjects = [];
 
         function createMap() {
@@ -199,7 +193,7 @@
         }
         createMap();
 
-        // --- 5. 흰 지팡이 로직 ---
+        // 5. 흰 지팡이 로직
         const caneGroup = new THREE.Group();
         scene.add(caneGroup);
 
@@ -218,32 +212,32 @@
         
         let caneAngleX = 0; 
         let caneAngleY = 0;
-        let learningMode = false;
         
-        // --- 6. 입력 및 기기 감지 모드 ---
+        // 6. 컨트롤 로직
         const keys = { w: false, a: false, s: false, d: false };
         let isPlaying = false;
-        
-        // 아이패드(데스크톱 요청 상태)를 포함하여 터치 기기를 초기에 감지합니다.
-        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        let isMobile = false; // 터치하면 true로 바뀜
         
         let pitch = 0;
         let yaw = 0;
 
+        // ★ 핵심: 터치 자동 감지 (버튼 클릭할 필요 없음) ★
+        window.addEventListener('touchstart', function enableTouchMode() {
+            isMobile = true;
+            document.getElementById('joystick-zone').style.display = 'block';
+            document.getElementById('touch-pad').style.display = 'block';
+            document.getElementById('hud-move').innerText = "좌측 조이스틱 : 이동";
+            document.getElementById('hud-look').innerText = "우측 화면 : 시점 및 지팡이 조작";
+            window.removeEventListener('touchstart', enableTouchMode); // 최초 1회만 작동
+        }, { passive: true });
+
         window.addEventListener('keydown', (e) => {
             if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
-            if(e.key.toLowerCase() === 'm') toggleLearningMode();
         });
         window.addEventListener('keyup', (e) => {
             if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
         });
 
-        function toggleLearningMode() {
-            learningMode = !learningMode;
-            document.getElementById('mode-status').innerText = `학습 모드 (기억 유지) : ${learningMode ? 'ON' : 'OFF'} [단축키: M]`;
-        }
-
-        // 데스크톱 마우스 컨트롤
         document.addEventListener('mousemove', (e) => {
             if(document.pointerLockElement === document.body && isPlaying && !isMobile) {
                 yaw -= e.movementX * 0.002;
@@ -254,7 +248,6 @@
             }
         });
 
-        // 모바일 터치 컨트롤 
         const joystickZone = document.getElementById('joystick-zone');
         const joystickKnob = document.getElementById('joystick-knob');
         const touchPad = document.getElementById('touch-pad');
@@ -328,49 +321,25 @@
         touchPad.addEventListener('touchend', resetTouchPad);
         touchPad.addEventListener('touchcancel', resetTouchPad);
 
-        // --- 7. UI 로직 및 모드 수동 전환 ---
+        // 7. UI 로직
         const startScreen = document.getElementById('start-screen');
         const endScreen = document.getElementById('end-screen');
-        const toggleControlStart = document.getElementById('toggle-control-start');
-        const toggleControlPause = document.getElementById('toggle-control-pause');
-
-        // 컨트롤 UI 업데이트 함수
-        function updateControlUI() {
-            if(isMobile) {
-                joystickZone.style.display = 'block';
-                touchPad.style.display = 'block';
-                toggleControlStart.innerText = "마우스 컨트롤(데스크톱) 강제 켜기";
-                toggleControlPause.innerText = "마우스 컨트롤(데스크톱) 강제 켜기";
-            } else {
-                joystickZone.style.display = 'none';
-                touchPad.style.display = 'none';
-                toggleControlStart.innerText = "터치 컨트롤(태블릿/모바일) 강제 켜기";
-                toggleControlPause.innerText = "터치 컨트롤(태블릿/모바일) 강제 켜기";
-            }
-        }
-        
-        // 초기 UI 설정 적용
-        updateControlUI();
-
-        // 수동 토글 이벤트
-        const handleToggle = () => {
-            isMobile = !isMobile;
-            updateControlUI();
-        };
-        toggleControlStart.addEventListener('click', handleToggle);
-        toggleControlPause.addEventListener('click', handleToggle);
 
         document.getElementById('start-btn').addEventListener('click', () => {
             initAudio();
             startScreen.style.display = 'none';
             isPlaying = true;
-            if(!isMobile) document.body.requestPointerLock();
+            if(!isMobile && document.body.requestPointerLock) {
+                document.body.requestPointerLock();
+            }
         });
 
         document.getElementById('resume-btn').addEventListener('click', () => {
             endScreen.style.display = 'none';
             isPlaying = true;
-            if(!isMobile) document.body.requestPointerLock();
+            if(!isMobile && document.body.requestPointerLock) {
+                document.body.requestPointerLock();
+            }
         });
         
         document.getElementById('restart-btn').addEventListener('click', () => {
@@ -391,7 +360,7 @@
             composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // --- 8. 메인 루프 ---
+        // 8. 렌더 루프
         const clock = new THREE.Clock();
         const velocity = new THREE.Vector3();
         const direction = new THREE.Vector3();
@@ -438,10 +407,8 @@
                 caneAngleX *= 0.9;
                 caneAngleY *= 0.9;
 
-                // --- 충돌 감지 ---
                 const tipWorldPos = new THREE.Vector3();
                 caneTip.getWorldPosition(tipWorldPos);
-
                 const radius = 0.2; 
 
                 for(let obj of interactableObjects) {
@@ -458,10 +425,8 @@
 
                 const selected = [];
                 const nowTime = performance.now();
-                const memoryDuration = learningMode ? 3000 : 200; 
-
                 for(let obj of interactableObjects) {
-                    if(nowTime - obj.userData.lastTouch < memoryDuration) {
+                    if(nowTime - obj.userData.lastTouch < 200) {
                         selected.push(obj);
                     }
                 }
