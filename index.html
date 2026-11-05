@@ -2,116 +2,297 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>BLIND WALK 3D</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
-        canvas { display: block; width: 100vw; height: 100vh; }
+        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-user-select: none; }
+        canvas { display: block; }
         
-        /* UI 공통 */
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.85); color: #fff; z-index: 10; text-align: center; padding: 20px; box-sizing: border-box; }
-        h1 { font-size: 3rem; margin-bottom: 10px; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
-        h2 { font-size: 1.5rem; margin-bottom: 30px; font-weight: 300; color: #aaa; }
-        p { font-size: 1.2rem; line-height: 1.6; margin-bottom: 40px; max-width: 600px; word-break: keep-all; }
+        /* UI Layers */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; z-index: 10; }
         
-        /* START 버튼 */
-        .primary-btn { padding: 15px 40px; font-size: 1.2rem; cursor: pointer; background: transparent; color: #0ff; border: 2px solid #0ff; border-radius: 5px; transition: all 0.3s ease; text-transform: uppercase; font-weight: bold; margin-bottom: 20px; }
-        .primary-btn:hover { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
-
-        /* HUD */
-        #hud { position: absolute; top: 20px; left: 20px; color: #fff; z-index: 5; pointer-events: none; }
-        .hud-item { margin-bottom: 10px; font-size: 0.9rem; opacity: 0.8; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
+        /* Screens */
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+        .hidden { display: none !important; }
         
-        /* 모바일 컨트롤러 */
-        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 5; display: none; touch-action: none; }
-        #joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: rgba(0,255,255,0.5); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-        #touch-pad { position: absolute; top: 0; right: 0; width: 50%; height: 100%; z-index: 4; display: none; touch-action: none; }
+        h1 { font-size: 3rem; margin-bottom: 0; color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        h2 { font-size: 1.2rem; font-weight: normal; margin-top: 5px; margin-bottom: 40px; color: #aaa; }
+        p { max-width: 600px; line-height: 1.6; margin-bottom: 30px; padding: 0 20px; }
         
-        @media (max-width: 768px) {
-            h1 { font-size: 2rem; }
-            p { font-size: 1rem; }
-        }
+        .btn { padding: 15px 30px; margin: 10px; font-size: 1.2rem; font-weight: bold; color: #fff; background: transparent; border: 2px solid #00ffff; border-radius: 5px; cursor: pointer; transition: all 0.3s; pointer-events: auto; }
+        .btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 15px #00ffff; }
+        
+        .mode-container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 30px; }
+        
+        /* In-game UI */
+        #top-bar { padding: 15px; display: flex; justify-content: space-between; pointer-events: auto; }
+        #settings-btn, #pause-btn { background: rgba(0,0,0,0.5); border: 1px solid #555; color: #fff; padding: 8px 15px; cursor: pointer; border-radius: 4px; pointer-events: auto; }
+        #settings-btn:hover, #pause-btn:hover { border-color: #00ffff; }
+        
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 50%; transform: translate(-50%, -50%); }
+        
+        /* Mobile Controls */
+        #mobile-controls { position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; display: flex; justify-content: space-between; pointer-events: auto; }
+        #joystick-zone { width: 50%; height: 100%; position: relative; }
+        #joystick-base { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; display: none; }
+        #joystick-stick { position: absolute; top: 30px; left: 30px; width: 60px; height: 60px; background: rgba(255,255,255,0.3); border-radius: 50%; }
+        #touchpad-zone { width: 50%; height: 100%; }
+        
+        /* Subtitles / Feedback */
+        #feedback { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); color: #00ffff; font-weight: bold; opacity: 0; transition: opacity 0.3s; text-shadow: 0 0 5px #00ffff; }
     </style>
+    <!-- Three.js & PostProcessing CDNs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/OutlinePass.js"></script>
 </head>
 <body>
 
-    <!-- HUD -->
-    <div id="hud">
-        <div class="hud-item" id="hud-move">W,A,S,D : 이동 (터치하면 자동 전환)</div>
-        <div class="hud-item" id="hud-look">마우스 : 시점 및 지팡이 조작</div>
-    </div>
-    <div id="crosshair"></div>
-
-    <!-- 모바일 컨트롤 (버튼 없이 터치 시 자동 활성화) -->
-    <div id="joystick-zone"><div id="joystick-knob"></div></div>
-    <div id="touch-pad"></div>
-
-    <!-- 시작 화면 -->
-    <div id="start-screen" class="overlay">
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
         <h1>BLIND WALK 3D</h1>
         <h2>Explore the world through a white cane.</h2>
-        <p>당신은 지금 시각적 정보가 제한된 환경에서 길을 찾아야 합니다.<br>흰 지팡이를 움직여 주변 장애물과 구조물을 파악하세요.</p>
-        <button id="start-btn" class="primary-btn">START</button>
+        <p>당신은 지금 시각적 정보가 제한된 환경에서 길을 찾아야 합니다.<br>흰 지팡이에 의지하여 물체를 파악하고 탐색하세요.</p>
+        <div class="mode-container">
+            <button class="btn" id="btn-desktop">DESKTOP MODE<br><span style="font-size: 0.8rem; font-weight: normal;">(WASD 이동, 마우스 지팡이 조작)</span></button>
+            <button class="btn" id="btn-mobile">MOBILE MODE<br><span style="font-size: 0.8rem; font-weight: normal;">(조이스틱 이동, 터치 드래그 지팡이)</span></button>
+        </div>
     </div>
 
-    <!-- 종료/일시정지 화면 -->
-    <div id="end-screen" class="overlay" style="display: none;">
-        <h1>탐색 일시정지</h1>
-        <p>"당신은 주변의 모든 장애물을 발견했나요?"</p>
-        <button id="resume-btn" class="primary-btn">계속하기</button>
-        <button id="restart-btn" class="primary-btn" style="margin-bottom: 20px;">처음부터 재시작</button>
+    <!-- End Screen -->
+    <div id="end-screen" class="screen hidden">
+        <h1 style="color: #fff; text-shadow: none;">당신은 주변의 모든 장애물을 발견했나요?</h1>
+        <p>지팡이가 닿기 전에는 발견하기 어려운 물체도 존재합니다.<br>이러한 한계를 보완할 방법은 무엇일까요?</p>
+        <button class="btn" id="btn-restart">RESTART</button>
     </div>
 
-    <!-- Three.js 라이브러리 -->
-    <script type="module">
-        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
-        import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
-        import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
-
-        // 1. 기본 설정
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        scene.fog = new THREE.Fog(0x050505, 2, 15);
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 1.6, 0);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: false });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        document.body.appendChild(renderer.domElement);
-
-        // 2. 후처리
-        const composer = new EffectComposer(renderer);
-        const renderPass = new RenderPass(scene, camera);
-        composer.addPass(renderPass);
-
-        const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-        outlinePass.edgeStrength = 5.0; 
-        outlinePass.edgeGlow = 1.0;     
-        outlinePass.edgeThickness = 2.0; 
-        outlinePass.visibleEdgeColor.set('#00ffff'); 
-        outlinePass.hiddenEdgeColor.set('#005555');
-        composer.addPass(outlinePass);
-
-        // 3. 오디오 시스템
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx;
+    <!-- In-Game UI -->
+    <div id="ui-layer" class="hidden">
+        <div id="top-bar">
+            <button id="pause-btn">일시정지</button>
+            <button id="settings-btn">조작 환경 변경</button>
+        </div>
+        <div id="crosshair"></div>
+        <div id="feedback">접촉됨</div>
         
-        function initAudio() {
-            if(!audioCtx) audioCtx = new AudioContext();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
+        <div id="mobile-controls" class="hidden">
+            <div id="joystick-zone">
+                <div id="joystick-base">
+                    <div id="joystick-stick"></div>
+                </div>
+            </div>
+            <div id="touchpad-zone"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 전역 변수 및 설정 ---
+        let scene, camera, renderer, composer, outlinePass;
+        let player, canePivot, caneMesh;
+        let isGameRunning = false;
+        let currentMode = 'desktop'; // 'desktop' or 'mobile'
+        
+        // 이동 및 물리
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let prevTime = performance.now();
+        const playerSpeed = 40.0;
+        
+        // 지팡이 조작
+        let targetCaneRotation = { x: -Math.PI/4, y: 0 };
+        let currentCaneRotation = { x: -Math.PI/4, y: 0 };
+        const caneLength = 2.5;
+        
+        // 충돌 및 탐색
+        const collidableObjects = [];
+        let hitObjectsTimer = new Map(); // 윤곽선 점진적 제거용 타이머 맵
+        
+        // 오디오
+        let audioCtx;
+        const soundBuffers = {};
+
+        // 모바일 조이스틱
+        let joystickActive = false;
+        let joystickVector = { x: 0, y: 0 };
+
+        // --- 2. 초기화 (Scene, Camera, Renderer, Post-processing) ---
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.Fog(0x050505, 2, 15);
+
+            // Camera (1인칭)
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+            
+            // Player Object (카메라와 지팡이를 묶음)
+            player = new THREE.Group();
+            player.position.set(0, 1.6, 0); // 눈높이
+            player.add(camera);
+            scene.add(player);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
+            document.body.appendChild(renderer.domElement);
+
+            // Post-processing (OutlinePass)
+            composer = new THREE.EffectComposer(renderer);
+            const renderPass = new THREE.RenderPass(scene, camera);
+            composer.addPass(renderPass);
+
+            outlinePass = new THREE.OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+            outlinePass.edgeStrength = 5.0;
+            outlinePass.edgeGlow = 1.0;
+            outlinePass.edgeThickness = 2.0;
+            outlinePass.pulsePeriod = 0;
+            outlinePass.visibleEdgeColor.set('#00ffff'); // 청록색 발광
+            outlinePass.hiddenEdgeColor.set('#005555');
+            composer.addPass(outlinePass);
+
+            // Lighting (시각 정보 제한을 위한 어두운 조명)
+            const ambientLight = new THREE.AmbientLight(0x222222);
+            scene.add(ambientLight);
+            const playerLight = new THREE.PointLight(0x445555, 0.5, 10);
+            player.add(playerLight);
+
+            buildEnvironment();
+            buildCane();
+            setupAudio();
+            setupEvents();
+
+            animate();
         }
 
-        function playSound(material, panX = 0) {
-            if(!audioCtx) return;
+        // --- 3. 3D 환경 (맵) 생성 ---
+        function buildEnvironment() {
+            const materialOptions = {
+                concrete: new THREE.MeshPhongMaterial({ color: 0x222222 }),
+                asphalt: new THREE.MeshPhongMaterial({ color: 0x111111 }),
+                metal: new THREE.MeshPhongMaterial({ color: 0x444455 }),
+                wood: new THREE.MeshPhongMaterial({ color: 0x332211 }),
+                plastic: new THREE.MeshPhongMaterial({ color: 0x113311 })
+            };
+
+            // 바닥 (도로와 인도)
+            const roadGeo = new THREE.PlaneGeometry(100, 100);
+            const road = new THREE.Mesh(roadGeo, materialOptions.asphalt);
+            road.rotation.x = -Math.PI / 2;
+            road.userData = { material: 'concrete', type: 'road' };
+            scene.add(road);
+            collidableObjects.push(road);
+
+            const sidewalkGeo = new THREE.BoxGeometry(100, 0.15, 6);
+            const sidewalk = new THREE.Mesh(sidewalkGeo, materialOptions.concrete);
+            sidewalk.position.set(0, 0.075, 0);
+            sidewalk.userData = { material: 'concrete', type: 'sidewalk' };
+            scene.add(sidewalk);
+            collidableObjects.push(sidewalk);
+
+            // 점자블록 (간단히 노란색 얇은 박스로 구현)
+            const tactileGeo = new THREE.BoxGeometry(100, 0.16, 0.5);
+            const tactileMat = new THREE.MeshPhongMaterial({ color: 0x333300 }); // 어두운 노란색
+            const tactile = new THREE.Mesh(tactileGeo, tactileMat);
+            tactile.position.set(0, 0.08, 0);
+            tactile.userData = { material: 'plastic', type: 'tactile_paving' };
+            scene.add(tactile);
+            collidableObjects.push(tactile);
+
+            // 건물들 배치 (인도 뒷편)
+            for (let i = -40; i <= 40; i += 10) {
+                const height = 5 + Math.random() * 15;
+                const bldgGeo = new THREE.BoxGeometry(8, height, 10);
+                const bldg = new THREE.Mesh(bldgGeo, materialOptions.concrete);
+                bldg.position.set(i, height/2, -8);
+                bldg.userData = { material: 'concrete', type: 'building' };
+                scene.add(bldg);
+                collidableObjects.push(bldg);
+            }
+
+            // 가로수, 가로등, 쓰레기통, 벤치 등 장애물 배치
+            for (let i = -40; i <= 40; i += 8) {
+                // 가로등 (Metal)
+                if (i % 16 === 0) {
+                    const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 4);
+                    const pole = new THREE.Mesh(poleGeo, materialOptions.metal);
+                    pole.position.set(i, 2, 2.5);
+                    pole.userData = { material: 'metal', type: 'lamppost' };
+                    scene.add(pole);
+                    collidableObjects.push(pole);
+                } 
+                // 쓰레기통 (Plastic/Metal)
+                else if (i % 24 === 8) {
+                    const binGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.8);
+                    const bin = new THREE.Mesh(binGeo, materialOptions.plastic);
+                    bin.position.set(i, 0.4 + 0.15, 2.5);
+                    bin.userData = { material: 'plastic', type: 'trashbin' };
+                    scene.add(bin);
+                    collidableObjects.push(bin);
+                }
+                // 나무 기둥 (Wood)
+                else {
+                    const treeGeo = new THREE.CylinderGeometry(0.2, 0.2, 3);
+                    const tree = new THREE.Mesh(treeGeo, materialOptions.wood);
+                    tree.position.set(i, 1.5, 2.5);
+                    tree.userData = { material: 'wood', type: 'tree' };
+                    scene.add(tree);
+                    collidableObjects.push(tree);
+                }
+                
+                // 임의의 입간판/장애물
+                if (Math.random() > 0.6) {
+                    const signGeo = new THREE.BoxGeometry(0.8, 1, 0.1);
+                    const sign = new THREE.Mesh(signGeo, materialOptions.wood);
+                    sign.position.set(i + 3, 0.5 + 0.15, 1);
+                    sign.rotation.y = Math.random();
+                    sign.userData = { material: 'wood', type: 'signboard' };
+                    scene.add(sign);
+                    collidableObjects.push(sign);
+                }
+            }
+        }
+
+        // --- 4. 흰 지팡이 (Cane) 모델 구현 ---
+        function buildCane() {
+            canePivot = new THREE.Group();
+            // 오른쪽 하단에서 뻗어나오도록 위치
+            canePivot.position.set(0.3, -0.5, -0.2); 
+            camera.add(canePivot);
+
+            const caneGeo = new THREE.CylinderGeometry(0.015, 0.01, caneLength);
+            // 지팡이 시각적 구현 (흰색 몸통, 빨간 끝)
+            const caneMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            caneMesh = new THREE.Mesh(caneGeo, caneMat);
+            // 피벗을 기준으로 아래로 길게 뻗도록
+            caneMesh.position.set(0, -caneLength / 2, 0);
+            caneMesh.rotation.x = Math.PI / 2;
+            
+            canePivot.add(caneMesh);
+            
+            // 초기 각도
+            canePivot.rotation.x = targetCaneRotation.x;
+        }
+
+        // --- 5. 청각 피드백 시스템 (Web Audio API) ---
+        function setupAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+
+        function playHitSound(material, panPosition) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             const panner = audioCtx.createStereoPanner();
-            
-            panner.pan.value = Math.max(-1, Math.min(1, panX));
+
+            panner.pan.value = Math.max(-1, Math.min(1, panPosition)); // -1(좌) ~ 1(우)
 
             osc.connect(panner);
             panner.connect(gain);
@@ -119,240 +300,325 @@
 
             const now = audioCtx.currentTime;
             
-            switch(material) {
-                case 'concrete':
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(100, now);
-                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
-                    gain.gain.setValueAtTime(0.5, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    osc.start(now); osc.stop(now + 0.1);
-                    break;
-                case 'metal':
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    osc.start(now); osc.stop(now + 0.3);
-                    break;
-                case 'wood':
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(300, now);
-                    gain.gain.setValueAtTime(0.4, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                    osc.start(now); osc.stop(now + 0.05);
-                    break;
-                default:
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(400, now);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                    osc.start(now); osc.stop(now + 0.1);
+            // 재질별 소리 합성
+            if (material === 'metal') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.3);
+                gain.gain.setValueAtTime(1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (material === 'wood') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (material === 'plastic') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else { // concrete or default
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                gain.gain.setValueAtTime(1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
             }
         }
 
-        // 4. 맵 구성
-        const interactableObjects = [];
+        // --- 6. 조작 및 입력 시스템 ---
+        let isPointerLocked = false;
+        let lastMouseX = 0, lastMouseY = 0;
 
-        function createMap() {
-            const groundGeo = new THREE.PlaneGeometry(30, 100);
-            const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            scene.add(ground);
-
-            const sidewalkGeo = new THREE.BoxGeometry(10, 0.1, 100);
-            const sidewalkMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-            const sidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-            sidewalk.position.set(5, 0.05, 0);
-            scene.add(sidewalk);
+        function setupEvents() {
+            // Mode Selectors
+            document.getElementById('btn-desktop').addEventListener('click', () => startGame('desktop'));
+            document.getElementById('btn-mobile').addEventListener('click', () => startGame('mobile'));
             
-            const tactileGeo = new THREE.BoxGeometry(0.5, 0.12, 100);
-            const tactileMat = new THREE.MeshBasicMaterial({ color: 0x333300 });
-            const tactile = new THREE.Mesh(tactileGeo, tactileMat);
-            tactile.position.set(5, 0.06, 0);
-            tactile.userData = { type: 'tactile', material: 'plastic' };
-            scene.add(tactile);
-            interactableObjects.push(tactile);
+            // In-game UI
+            document.getElementById('pause-btn').addEventListener('click', pauseGame);
+            document.getElementById('settings-btn').addEventListener('click', () => {
+                pauseGame();
+                document.getElementById('start-screen').classList.remove('hidden');
+                document.getElementById('ui-layer').classList.add('hidden');
+            });
+            document.getElementById('btn-restart').addEventListener('click', () => {
+                location.reload(); // 리스타트
+            });
 
-            const createObject = (geo, matColor, x, y, z, type, material) => {
-                const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: matColor }));
-                mesh.position.set(x, y, z);
-                mesh.userData = { type, material, lastTouch: 0 };
-                scene.add(mesh);
-                interactableObjects.push(mesh);
-                return mesh;
-            };
+            // Keyboard (Desktop)
+            document.addEventListener('keydown', (e) => {
+                if(currentMode !== 'desktop' || !isGameRunning) return;
+                switch(e.code) {
+                    case 'KeyW': moveForward = true; break;
+                    case 'KeyS': moveBackward = true; break;
+                    case 'KeyA': moveLeft = true; break;
+                    case 'KeyD': moveRight = true; break;
+                }
+            });
+            document.addEventListener('keyup', (e) => {
+                if(currentMode !== 'desktop' || !isGameRunning) return;
+                switch(e.code) {
+                    case 'KeyW': moveForward = false; break;
+                    case 'KeyS': moveBackward = false; break;
+                    case 'KeyA': moveLeft = false; break;
+                    case 'KeyD': moveRight = false; break;
+                }
+            });
 
-            for(let i = -40; i < 40; i+= 10) {
-                createObject(new THREE.CylinderGeometry(0.1, 0.1, 4), 0x333333, 2, 2, i, 'streetlight', 'metal');
-                if(Math.random() > 0.5) createObject(new THREE.CylinderGeometry(0.4, 0.3, 1), 0x1a1a1a, 8, 0.5, i+2, 'trashcan', 'plastic');
-                if(Math.random() > 0.5) createObject(new THREE.BoxGeometry(0.8, 1.2, 0.8), 0x2a1a1a, 3, 0.6, i-3, 'sign', 'wood');
-                createObject(new THREE.BoxGeometry(5, 10, 8), 0x151515, 11, 5, i, 'building', 'concrete');
-            }
+            // Pointer Lock (Desktop Mouse)
+            document.body.addEventListener('click', () => {
+                if(currentMode === 'desktop' && isGameRunning && !isPointerLocked) {
+                    document.body.requestPointerLock();
+                }
+            });
+            document.addEventListener('pointerlockchange', () => {
+                isPointerLocked = document.pointerLockElement === document.body;
+            });
+
+            // Mouse Move (Cane & Camera)
+            document.addEventListener('mousemove', (e) => {
+                if (currentMode === 'desktop' && isPointerLocked && isGameRunning) {
+                    handleLookAndCane(e.movementX, e.movementY, 0.002);
+                }
+            });
+
+            // Mobile Touch Events
+            const joystickBase = document.getElementById('joystick-base');
+            const joystickStick = document.getElementById('joystick-stick');
+            const joystickZone = document.getElementById('joystick-zone');
+            const touchpadZone = document.getElementById('touchpad-zone');
+
+            // Left side - Joystick
+            joystickZone.addEventListener('touchstart', (e) => {
+                if (currentMode !== 'mobile') return;
+                joystickActive = true;
+                const touch = e.changedTouches[0];
+                joystickBase.style.display = 'block';
+                joystickBase.style.left = (touch.clientX - 60) + 'px';
+                joystickBase.style.bottom = (window.innerHeight - touch.clientY - 60) + 'px';
+                updateJoystick(touch);
+            });
+            joystickZone.addEventListener('touchmove', (e) => {
+                if (!joystickActive) return;
+                e.preventDefault();
+                updateJoystick(e.changedTouches[0]);
+            });
+            joystickZone.addEventListener('touchend', () => {
+                joystickActive = false;
+                joystickBase.style.display = 'none';
+                joystickStick.style.transform = `translate(0px, 0px)`;
+                moveForward = moveBackward = moveLeft = moveRight = false;
+            });
+
+            // Right side - Camera & Cane
+            let lastTouchX = null, lastTouchY = null;
+            touchpadZone.addEventListener('touchstart', (e) => {
+                if (currentMode !== 'mobile') return;
+                lastTouchX = e.changedTouches[0].clientX;
+                lastTouchY = e.changedTouches[0].clientY;
+            });
+            touchpadZone.addEventListener('touchmove', (e) => {
+                if (currentMode !== 'mobile' || lastTouchX === null) return;
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                const movementX = touch.clientX - lastTouchX;
+                const movementY = touch.clientY - lastTouchY;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+                handleLookAndCane(movementX, movementY, 0.005);
+            });
+            touchpadZone.addEventListener('touchend', () => {
+                lastTouchX = null; lastTouchY = null;
+            });
         }
-        createMap();
-
-        // 5. 흰 지팡이 로직
-        const caneGroup = new THREE.Group();
-        scene.add(caneGroup);
-
-        const caneGeo = new THREE.CylinderGeometry(0.015, 0.01, 1.2);
-        caneGeo.translate(0, -0.6, 0);
-        const caneMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const caneMesh = new THREE.Mesh(caneGeo, caneMat);
-        
-        const tipGeo = new THREE.SphereGeometry(0.03);
-        const tipMat = new THREE.MeshBasicMaterial({ color: 0xff0000, visible: false }); 
-        const caneTip = new THREE.Mesh(tipGeo, tipMat);
-        caneTip.position.set(0, -1.2, 0);
-        
-        caneMesh.add(caneTip);
-        caneGroup.add(caneMesh);
-        
-        let caneAngleX = 0; 
-        let caneAngleY = 0;
-        
-        // 6. 컨트롤 로직
-        const keys = { w: false, a: false, s: false, d: false };
-        let isPlaying = false;
-        let isMobile = false; // 터치하면 true로 바뀜
-        
-        let pitch = 0;
-        let yaw = 0;
-
-        // ★ 핵심: 터치 자동 감지 (버튼 클릭할 필요 없음) ★
-        window.addEventListener('touchstart', function enableTouchMode() {
-            isMobile = true;
-            document.getElementById('joystick-zone').style.display = 'block';
-            document.getElementById('touch-pad').style.display = 'block';
-            document.getElementById('hud-move').innerText = "좌측 조이스틱 : 이동";
-            document.getElementById('hud-look').innerText = "우측 화면 : 시점 및 지팡이 조작";
-            window.removeEventListener('touchstart', enableTouchMode); // 최초 1회만 작동
-        }, { passive: true });
-
-        window.addEventListener('keydown', (e) => {
-            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
-        });
-        window.addEventListener('keyup', (e) => {
-            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if(document.pointerLockElement === document.body && isPlaying && !isMobile) {
-                yaw -= e.movementX * 0.002;
-                pitch -= e.movementY * 0.002;
-                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-                caneAngleX = (e.movementX * 0.05) + (Math.sin(performance.now() * 0.005) * 0.3);
-                caneAngleY = Math.max(-0.5, Math.min(0.2, (e.movementY * 0.01)));
-            }
-        });
-
-        const joystickZone = document.getElementById('joystick-zone');
-        const joystickKnob = document.getElementById('joystick-knob');
-        const touchPad = document.getElementById('touch-pad');
-        let joyTouchId = null, padTouchId = null;
-        let lastPadX = 0, lastPadY = 0;
-        let moveVector = new THREE.Vector2(0, 0);
-
-        joystickZone.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            joyTouchId = touch.identifier;
-            updateJoystick(touch);
-        });
-        joystickZone.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            for(let i=0; i<e.changedTouches.length; i++) {
-                if(e.changedTouches[i].identifier === joyTouchId) updateJoystick(e.changedTouches[i]);
-            }
-        });
-        const resetJoystick = () => {
-            joyTouchId = null;
-            joystickKnob.style.transform = `translate(-50%, -50%)`;
-            moveVector.set(0,0);
-        };
-        joystickZone.addEventListener('touchend', resetJoystick);
-        joystickZone.addEventListener('touchcancel', resetJoystick);
 
         function updateJoystick(touch) {
-            const rect = joystickZone.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            const rect = document.getElementById('joystick-base').getBoundingClientRect();
+            const centerX = rect.left + 60;
+            const centerY = rect.top + 60;
             let dx = touch.clientX - centerX;
             let dy = touch.clientY - centerY;
-            const distance = Math.min(rect.width/2, Math.sqrt(dx*dx + dy*dy));
-            const angle = Math.atan2(dy, dx);
             
-            const knobX = Math.cos(angle) * distance;
-            const knobY = Math.sin(angle) * distance;
+            const maxDist = 40;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
             
-            joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
-            moveVector.set(knobX / (rect.width/2), knobY / (rect.height/2));
+            document.getElementById('joystick-stick').style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            // Normalize for movement
+            joystickVector.x = dx / maxDist;
+            joystickVector.y = dy / maxDist;
+
+            moveForward = joystickVector.y < -0.2;
+            moveBackward = joystickVector.y > 0.2;
+            moveLeft = joystickVector.x < -0.2;
+            moveRight = joystickVector.x > 0.2;
         }
 
-        touchPad.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.changedTouches[0];
-            padTouchId = touch.identifier;
-            lastPadX = touch.clientX;
-            lastPadY = touch.clientY;
-        });
-        touchPad.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if(!isPlaying) return;
-            for(let i=0; i<e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if(touch.identifier === padTouchId) {
-                    const movementX = touch.clientX - lastPadX;
-                    const movementY = touch.clientY - lastPadY;
+        function handleLookAndCane(movementX, movementY, sensitivity) {
+            // 지팡이 각도 조절 (좌우 흔들기 및 상하 각도)
+            targetCaneRotation.y -= movementX * sensitivity * 1.5;
+            targetCaneRotation.x -= movementY * sensitivity * 1.5;
+            
+            // 지팡이 가동 범위 제한
+            const maxSwing = Math.PI / 4;
+            const minTilt = -Math.PI / 2.5;
+            const maxTilt = -Math.PI / 8;
+            
+            // 한계치 초과 시 카메라 회전으로 전환 (시점 이동)
+            if (targetCaneRotation.y > maxSwing) {
+                player.rotation.y -= (targetCaneRotation.y - maxSwing) * 0.5;
+                targetCaneRotation.y = maxSwing;
+            } else if (targetCaneRotation.y < -maxSwing) {
+                player.rotation.y -= (targetCaneRotation.y + maxSwing) * 0.5;
+                targetCaneRotation.y = -maxSwing;
+            }
+            
+            if (targetCaneRotation.x < minTilt) targetCaneRotation.x = minTilt;
+            if (targetCaneRotation.x > maxTilt) targetCaneRotation.x = maxTilt;
+        }
+
+        // --- 7. 게임 상태 관리 ---
+        function startGame(mode) {
+            currentMode = mode;
+            isGameRunning = true;
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('ui-layer').classList.remove('hidden');
+            
+            if (mode === 'desktop') {
+                document.getElementById('mobile-controls').classList.add('hidden');
+                document.getElementById('crosshair').classList.remove('hidden');
+                document.body.requestPointerLock();
+            } else {
+                document.getElementById('mobile-controls').classList.remove('hidden');
+                document.getElementById('crosshair').classList.add('hidden');
+                if (document.pointerLockElement) document.exitPointerLock();
+            }
+
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            prevTime = performance.now();
+        }
+
+        function pauseGame() {
+            isGameRunning = false;
+            if (document.pointerLockElement) document.exitPointerLock();
+        }
+
+        // --- 8. 핵심 기능: 충돌 감지 및 윤곽선 (Raycasting) ---
+        const raycaster = new THREE.Raycaster();
+        let lastHitObject = null;
+        let lastHitTime = 0;
+
+        function checkCaneCollision() {
+            // 지팡이 피벗에서 지팡이 끝 방향으로 Ray 생성
+            const origin = new THREE.Vector3();
+            canePivot.getWorldPosition(origin);
+            
+            const direction = new THREE.Vector3(0, -1, 0); // 기본 아래 방향
+            direction.applyQuaternion(canePivot.getWorldQuaternion(new THREE.Quaternion()));
+            direction.normalize();
+
+            raycaster.set(origin, direction);
+            
+            // 지팡이 길이 내의 물체 교차 확인
+            const intersects = raycaster.intersectObjects(collidableObjects);
+            
+            let hitFound = false;
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                if (hit.distance <= caneLength) {
+                    hitFound = true;
+                    const hitObj = hit.object;
                     
-                    yaw -= movementX * 0.005;
-                    pitch -= movementY * 0.005;
-                    pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
-                    caneAngleX = movementX * 0.02;
-                    
-                    lastPadX = touch.clientX;
-                    lastPadY = touch.clientY;
+                    // 점진적 탐색: 접촉한 객체의 타이머 갱신 (0.5초 유지)
+                    hitObjectsTimer.set(hitObj, performance.now() + 500);
+
+                    // 새로운 물체 접촉 시 소리 발생
+                    if (lastHitObject !== hitObj || performance.now() - lastHitTime > 300) {
+                        const pan = Math.sin(canePivot.rotation.y); // 지팡이가 향한 좌우 방향
+                        playHitSound(hitObj.userData.material, pan);
+                        lastHitObject = hitObj;
+                        lastHitTime = performance.now();
+                    }
                 }
             }
-        });
-        const resetTouchPad = () => { padTouchId = null; };
-        touchPad.addEventListener('touchend', resetTouchPad);
-        touchPad.addEventListener('touchcancel', resetTouchPad);
 
-        // 7. UI 로직
-        const startScreen = document.getElementById('start-screen');
-        const endScreen = document.getElementById('end-screen');
-
-        document.getElementById('start-btn').addEventListener('click', () => {
-            initAudio();
-            startScreen.style.display = 'none';
-            isPlaying = true;
-            if(!isMobile && document.body.requestPointerLock) {
-                document.body.requestPointerLock();
+            if (!hitFound) {
+                lastHitObject = null;
             }
-        });
 
-        document.getElementById('resume-btn').addEventListener('click', () => {
-            endScreen.style.display = 'none';
-            isPlaying = true;
-            if(!isMobile && document.body.requestPointerLock) {
-                document.body.requestPointerLock();
+            // OutlinePass에 렌더링할 객체 목록 업데이트 (점진적 제거)
+            const currentTime = performance.now();
+            const activeOutlines = [];
+            for (let [obj, expireTime] of hitObjectsTimer.entries()) {
+                if (currentTime > expireTime) {
+                    hitObjectsTimer.delete(obj); // 0.5초 경과 시 제거
+                } else {
+                    activeOutlines.push(obj);
+                }
             }
-        });
-        
-        document.getElementById('restart-btn').addEventListener('click', () => {
-            location.reload();
-        });
+            outlinePass.selectedObjects = activeOutlines;
+        }
 
-        document.addEventListener('pointerlockchange', () => {
-            if(document.pointerLockElement !== document.body && !isMobile) {
-                isPlaying = false;
-                if(startScreen.style.display === 'none') endScreen.style.display = 'flex';
+        // --- 9. 메인 게임 루프 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isGameRunning) {
+                const time = performance.now();
+                const delta = (time - prevTime) / 1000;
+
+                // 지팡이 부드러운 회전 보간 (Lerp)
+                currentCaneRotation.x += (targetCaneRotation.x - currentCaneRotation.x) * 15 * delta;
+                currentCaneRotation.y += (targetCaneRotation.y - currentCaneRotation.y) * 15 * delta;
+                canePivot.rotation.x = currentCaneRotation.x;
+                canePivot.rotation.y = currentCaneRotation.y;
+
+                // 물리 이동 처리
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * playerSpeed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * playerSpeed * delta;
+
+                // 플레이어 로컬 이동 축 적용 (카메라 바라보는 방향 기준)
+                player.translateX(velocity.x * delta);
+                player.translateZ(velocity.z * delta);
+                
+                // 단순 바운더리 제한 (건물 통과 방지)
+                if (player.position.x < -40) player.position.x = -40;
+                if (player.position.x > 40) player.position.x = 40;
+                if (player.position.z < -6) player.position.z = -6;
+                if (player.position.z > 3) player.position.z = 3;
+
+                // 충돌 및 시각/청각 피드백 연산
+                checkCaneCollision();
+
+                prevTime = time;
             }
-        });
 
+            // 후처리 포함 렌더링
+            composer.render();
+        }
+
+        // 창 크기 변경 대응
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -360,83 +626,9 @@
             composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 8. 렌더 루프
-        const clock = new THREE.Clock();
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        let lastHitTime = 0;
+        // 시작
+        init();
 
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if(isPlaying) {
-                const delta = clock.getDelta();
-                const speed = 3.0; 
-
-                camera.rotation.set(pitch, yaw, 0, 'YXZ');
-
-                direction.z = Number(keys.w) - Number(keys.s) - moveVector.y;
-                direction.x = Number(keys.d) - Number(keys.a) + moveVector.x;
-                direction.normalize();
-
-                if (direction.z !== 0 || direction.x !== 0) {
-                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-                    right.y = 0; right.normalize();
-                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                    forward.y = 0; forward.normalize();
-
-                    velocity.copy(right).multiplyScalar(direction.x)
-                            .add(forward.multiplyScalar(-direction.z));
-                    
-                    camera.position.addScaledVector(velocity, speed * delta);
-                }
-
-                camera.position.x = Math.max(0, Math.min(13, camera.position.x));
-                camera.position.z = Math.max(-45, Math.min(45, camera.position.z));
-
-                caneGroup.position.copy(camera.position);
-                caneGroup.quaternion.copy(camera.quaternion);
-                
-                caneGroup.translateX(0.3);
-                caneGroup.translateY(-0.5);
-                caneGroup.translateZ(-0.3);
-                
-                caneMesh.rotation.x = THREE.MathUtils.lerp(caneMesh.rotation.x, Math.PI / 4 + caneAngleY, 0.1);
-                caneMesh.rotation.z = THREE.MathUtils.lerp(caneMesh.rotation.z, Math.sin(performance.now()*0.002)*0.2 + caneAngleX, 0.1);
-                
-                caneAngleX *= 0.9;
-                caneAngleY *= 0.9;
-
-                const tipWorldPos = new THREE.Vector3();
-                caneTip.getWorldPosition(tipWorldPos);
-                const radius = 0.2; 
-
-                for(let obj of interactableObjects) {
-                    const dist = tipWorldPos.distanceTo(obj.position);
-                    if(dist < obj.geometry.boundingSphere.radius * obj.scale.x + radius) {
-                        obj.userData.lastTouch = performance.now();
-                        if(performance.now() - lastHitTime > 250) {
-                            const panX = tipWorldPos.clone().project(camera).x;
-                            playSound(obj.userData.material, panX);
-                            lastHitTime = performance.now();
-                        }
-                    }
-                }
-
-                const selected = [];
-                const nowTime = performance.now();
-                for(let obj of interactableObjects) {
-                    if(nowTime - obj.userData.lastTouch < 200) {
-                        selected.push(obj);
-                    }
-                }
-                outlinePass.selectedObjects = selected;
-            }
-            composer.render();
-        }
-
-        interactableObjects.forEach(obj => obj.geometry.computeBoundingSphere());
-        animate();
     </script>
 </body>
 </html>
