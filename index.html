@@ -1,761 +1,490 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLIND WALK 3D - 보이지 않는 길을 탐색하다</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
-    body, html {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #050505;
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #ffffff;
-    }
+    <meta charset="UTF-8">
+    <!-- 모바일 환경 터치 최적화 및 확대 방지 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BLIND WALK 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* UI 공통 */
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.85); color: #fff; z-index: 10; text-align: center; padding: 20px; box-sizing: border-box; }
+        h1 { font-size: 3rem; margin-bottom: 10px; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
+        h2 { font-size: 1.5rem; margin-bottom: 30px; font-weight: 300; color: #aaa; }
+        p { font-size: 1.2rem; line-height: 1.6; margin-bottom: 40px; max-width: 600px; word-break: keep-all; }
+        button { padding: 15px 40px; font-size: 1.2rem; cursor: pointer; background: transparent; color: #0ff; border: 2px solid #0ff; border-radius: 5px; transition: all 0.3s ease; text-transform: uppercase; font-weight: bold; }
+        button:hover { background: #0ff; color: #000; box-shadow: 0 0 15px #0ff; }
 
-    /* 시작 / 종료 화면 커튼 */
-    .screen-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background: rgba(5, 5, 5, 0.95);
-      backdrop-filter: blur(8px);
-      transition: opacity 0.5s ease, visibility 0.5s;
-    }
-    .screen-overlay.hidden {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-
-    .title {
-      font-size: 3.2rem;
-      font-weight: 800;
-      letter-spacing: 2px;
-      color: #00f0ff;
-      text-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
-      margin-bottom: 10px;
-    }
-    .subtitle {
-      font-size: 1.4rem;
-      color: #aaaaaa;
-      margin-bottom: 30px;
-    }
-    .guide-box {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(0, 240, 255, 0.2);
-      border-radius: 12px;
-      padding: 25px 35px;
-      max-width: 550px;
-      text-align: left;
-      margin-bottom: 35px;
-      line-height: 1.6;
-      font-size: 1rem;
-    }
-    .guide-box ul {
-      margin-left: 20px;
-      margin-top: 8px;
-    }
-
-    .btn {
-      padding: 16px 40px;
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #050505;
-      background: #00f0ff;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
-      transition: all 0.2s ease;
-    }
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 25px rgba(0, 240, 255, 0.8);
-      background: #ffffff;
-    }
-
-    /* 게임 인게임 UI */
-    #crosshair {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 6px;
-      height: 6px;
-      background: rgba(0, 240, 255, 0.4);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    /* HUD */
-    .hud {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      font-size: 0.95rem;
-      color: #888888;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 12px 18px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      pointer-events: none;
-    }
-    .hud span {
-      color: #00f0ff;
-      font-weight: 600;
-    }
-
-    /* 가상 포인터 */
-    #virtual-pointer {
-      position: absolute;
-      width: 14px;
-      height: 14px;
-      background: #ff3366;
-      border: 2px solid #ffffff;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 50;
-      box-shadow: 0 0 10px #ff3366;
-      display: none;
-    }
-
-    /* 미니맵 UI 및 오버레이 */
-    .map-container {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-    }
-    .map-btn {
-      padding: 8px 16px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #ffffff;
-      background: rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(0, 240, 255, 0.4);
-      border-radius: 6px;
-      cursor: pointer;
-      backdrop-filter: blur(4px);
-      transition: all 0.2s ease;
-    }
-    .map-btn:hover {
-      background: rgba(0, 240, 255, 0.2);
-      border-color: #00f0ff;
-    }
-    #minimap {
-      width: 180px;
-      height: 180px;
-      background: rgba(10, 15, 25, 0.85);
-      border: 1px solid rgba(0, 240, 255, 0.4);
-      border-radius: 8px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-    #minimap.hidden-map {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(-10px);
-    }
-
-    /* 결과 문구 */
-    .ending-text-main {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 15px;
-      text-align: center;
-      line-height: 1.4;
-    }
-    .ending-text-sub {
-      font-size: 1.2rem;
-      color: #00f0ff;
-      margin-bottom: 40px;
-      text-align: center;
-    }
-
-    #webgl-container {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
-
-  <!-- Three.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        /* HUD */
+        #hud { position: absolute; top: 20px; left: 20px; color: #fff; z-index: 5; pointer-events: none; }
+        .hud-item { margin-bottom: 10px; font-size: 0.9rem; opacity: 0.8; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 50%; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
+        
+        /* 모바일 컨트롤러 */
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 5; display: none; touch-action: none; }
+        #joystick-knob { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; background: rgba(0,255,255,0.5); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        #touch-pad { position: absolute; top: 0; right: 0; width: 50%; height: 100%; z-index: 4; display: none; touch-action: none; }
+        
+        /* 모바일 감지 시 UI 활성화 */
+        @media (max-width: 768px) {
+            #joystick-zone, #touch-pad { display: block; }
+            h1 { font-size: 2rem; }
+            p { font-size: 1rem; }
+        }
+    </style>
 </head>
 <body>
 
-  <!-- 3D Canvas Container -->
-  <div id="webgl-container"></div>
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-item">W,A,S,D (또는 조이스틱) : 이동</div>
+        <div class="hud-item">마우스 (또는 우측 화면 터치) : 시점 및 지팡이 조작</div>
+        <div class="hud-item">ESC : 메뉴 / 마우스 잠금 해제</div>
+        <div class="hud-item" id="mode-status">학습 모드 (기억 유지) : OFF [단축키: M]</div>
+    </div>
+    <div id="crosshair"></div>
 
-  <!-- 인게임 HUD -->
-  <div class="hud">
-    <div>가상 마우스 좌표: X <span id="hud-x">0</span> | Y <span id="hud-y">0</span></div>
-    <div>조작: <span>WASD</span> (이동) | <span>마우스</span> (지팡이/시점) | <span>M</span> (맵)</div>
-  </div>
+    <!-- 모바일 컨트롤 -->
+    <div id="joystick-zone"><div id="joystick-knob"></div></div>
+    <div id="touch-pad"></div>
 
-  <!-- 가상 커서 -->
-  <div id="virtual-pointer"></div>
-
-  <!-- 미니맵 컨테이너 -->
-  <div class="map-container">
-    <button id="map-toggle-btn" class="map-btn">맵 가리기 (M)</button>
-    <canvas id="minimap" width="180" height="180"></canvas>
-  </div>
-
-  <div id="crosshair"></div>
-
-  <!-- 시작 화면 -->
-  <div id="start-screen" class="screen-overlay">
-    <h1 class="title">BLIND WALK 3D</h1>
-    <p class="subtitle">보이지 않는 길을 탐색하다</p>
-    
-    <div class="guide-box">
-      <strong>[ 체험 방법 ]</strong>
-      <ul>
-        <li><strong>WASD</strong>: 실내 공간 이동</li>
-        <li><strong>마우스 이동</strong>: 지팡이를 흔들어 장애물 탐색 및 시점 조작</li>
-        <li><strong>청각/시각 피드백</strong>: 지팡이가 물체에 부딪히면 소리와 윤곽선이 나타납니다.</li>
-        <li><strong>목표</strong>: 지팡이 피드백을 통해 복도 끝 출구를 찾으세요.</li>
-      </ul>
+    <!-- 시작 화면 -->
+    <div id="start-screen" class="overlay">
+        <h1>BLIND WALK 3D</h1>
+        <h2>Explore the world through a white cane.</h2>
+        <p>당신은 지금 시각적 정보가 제한된 환경에서 길을 찾아야 합니다.<br>흰 지팡이를 움직여 주변 장애물과 구조물을 파악하세요.</p>
+        <button id="start-btn">START</button>
     </div>
 
-    <button id="start-btn" class="btn">체험 시작하기</button>
-  </div>
+    <!-- 종료/일시정지 화면 -->
+    <div id="end-screen" class="overlay" style="display: none;">
+        <h1>탐색 종료</h1>
+        <p>"당신은 주변의 모든 장애물을 발견했나요?"<br><br>지팡이가 닿기 전에는 발견하기 어려운 물체도 존재합니다.<br>이러한 한계를 보완할 방법은 무엇일까요?</p>
+        <button id="resume-btn">계속하기</button>
+        <button id="restart-btn" style="margin-top: 15px;">처음부터 재시작</button>
+    </div>
 
-  <!-- 종료 화면 -->
-  <div id="end-screen" class="screen-overlay hidden">
-    <div class="ending-text-main">"지팡이가 닿기 전에 장애물을 발견할 수는 없을까?"</div>
-    <div class="ending-text-sub">기존 흰 지팡이의 한계를 보완하기 위한 새로운 방법을 고민했습니다.</div>
-    <button id="restart-btn" class="btn">다시 체험하기</button>
-  </div>
+    <!-- Three.js 및 Post Processing 라이브러리 (ES Modules) -->
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
+        import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
+        import { OutlinePass } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/OutlinePass.js';
 
-  <script>
-    /* --- 글로벌 설정 및 상태 --- */
-    let scene, camera, renderer;
-    let cane, caneTip;
-    let audioCtx = null;
-    let isGameRunning = false;
-    let isMapVisible = true;
+        // --- 1. 기본 설정 (Scene, Camera, Renderer) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x050505, 2, 15); // 제한된 시야(안개) 설정
 
-    // 플레이어 이동 파라미터
-    const player = {
-      position: new THREE.Vector3(0, 1.6, 12),
-      velocity: new THREE.Vector3(),
-      yaw: 0,
-      pitch: 0,
-      radius: 0.4
-    };
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.6, 0); // 1인칭 눈높이 (약 1.6m)
 
-    const keys = { KeyW: false, KeyS: false, KeyA: false, KeyD: false };
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 모바일 최적화
+        document.body.appendChild(renderer.domElement);
 
-    // 가상 마우스 포인터 관리
-    const virtualMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    let ignoreNextDelta = false; // 마우스 튕김 방지 플래그
+        // --- 2. 후처리 (Outline Effect) ---
+        const composer = new EffectComposer(renderer);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
 
-    // 장래물 목록
-    const obstacles = [];
-    let exitTrigger = null;
+        const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+        outlinePass.edgeStrength = 5.0; // 윤곽선 강도
+        outlinePass.edgeGlow = 1.0;     // 발광 효과
+        outlinePass.edgeThickness = 2.0; // 두께
+        outlinePass.visibleEdgeColor.set('#00ffff'); // 청록색
+        outlinePass.hiddenEdgeColor.set('#005555');
+        composer.addPass(outlinePass);
 
-    // 미니맵 Canvas
-    const mapCanvas = document.getElementById('minimap');
-    const mapCtx = mapCanvas.getContext('2d');
+        // --- 3. 오디오 시스템 (Web Audio API) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        function initAudio() {
+            if(!audioCtx) audioCtx = new AudioContext();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
 
-    /* --- 초기화 함수 --- */
-    function init() {
-      const container = document.getElementById('webgl-container');
+        // 재질별 충돌음 생성기 (절차적 합성)
+        function playSound(material, panX = 0) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const panner = audioCtx.createStereoPanner();
+            
+            panner.pan.value = Math.max(-1, Math.min(1, panX)); // -1(왼쪽) ~ 1(오른쪽)
 
-      // 1. Scene setup
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x020204);
+            osc.connect(panner);
+            panner.connect(gain);
+            gain.connect(audioCtx.destination);
 
-      // 시각 제한을 위한 시야 제한 안개 (FogExp2)
-      scene.fog = new THREE.FogExp2(0x020204, 0.45);
+            const now = audioCtx.currentTime;
+            
+            switch(material) {
+                case 'concrete':
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                    break;
+                case 'metal':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                    break;
+                case 'wood':
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now); osc.stop(now + 0.05);
+                    break;
+                default: // plastic/others
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+            }
+        }
 
-      // 2. Camera setup
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
-      camera.position.copy(player.position);
+        // --- 4. 맵 구성 (Procedural Generation) ---
+        const interactableObjects = []; // 지팡이 충돌 체크용 배열
 
-      // 3. Renderer setup
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.shadowMap.enabled = true;
-      container.appendChild(renderer.domElement);
+        function createMap() {
+            // 바닥 (도로 및 인도)
+            const groundGeo = new THREE.PlaneGeometry(30, 100);
+            const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
 
-      // 4. Light setup
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
-      scene.add(ambientLight);
+            const sidewalkGeo = new THREE.BoxGeometry(10, 0.1, 100);
+            const sidewalkMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+            const sidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+            sidewalk.position.set(5, 0.05, 0);
+            scene.add(sidewalk);
+            
+            // 점자블록 (가운데)
+            const tactileGeo = new THREE.BoxGeometry(0.5, 0.12, 100);
+            const tactileMat = new THREE.MeshBasicMaterial({ color: 0x333300 });
+            const tactile = new THREE.Mesh(tactileGeo, tactileMat);
+            tactile.position.set(5, 0.06, 0);
+            tactile.userData = { type: 'tactile', material: 'plastic' };
+            scene.add(tactile);
+            interactableObjects.push(tactile);
 
-      // 지팡이 끝 조명 (손전등 효과)
-      const caneLight = new THREE.PointLight(0x00f0ff, 1.5, 2.5);
-      caneLight.position.set(0, 0, 0);
+            // 주변 물체 생성 헬퍼 함수
+            const createObject = (geo, matColor, x, y, z, type, material) => {
+                const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: matColor }));
+                mesh.position.set(x, y, z);
+                mesh.userData = { type, material, lastTouch: 0 };
+                scene.add(mesh);
+                interactableObjects.push(mesh);
+                return mesh;
+            };
 
-      // 5. 지팡이 모델링
-      createCane();
-      cane.add(caneLight);
+            // 가로등, 쓰레기통, 입간판, 벤치 등 랜덤 배치
+            for(let i = -40; i < 40; i+= 10) {
+                // 가로등 (금속)
+                createObject(new THREE.CylinderGeometry(0.1, 0.1, 4), 0x333333, 2, 2, i, 'streetlight', 'metal');
+                // 쓰레기통 (플라스틱)
+                if(Math.random() > 0.5) createObject(new THREE.CylinderGeometry(0.4, 0.3, 1), 0x1a1a1a, 8, 0.5, i+2, 'trashcan', 'plastic');
+                // 입간판 (나무)
+                if(Math.random() > 0.5) createObject(new THREE.BoxGeometry(0.8, 1.2, 0.8), 0x2a1a1a, 3, 0.6, i-3, 'sign', 'wood');
+                // 벽/건물 (콘크리트)
+                createObject(new THREE.BoxGeometry(5, 10, 8), 0x151515, 11, 5, i, 'building', 'concrete');
+            }
+        }
+        createMap();
 
-      // 6. 맵(복도 및 장애물) 생성
-      buildEnvironment();
+        // --- 5. 흰 지팡이 (White Cane) 모델 및 로직 ---
+        const caneGroup = new THREE.Group();
+        scene.add(caneGroup);
 
-      // Event listeners
-      window.addEventListener('resize', onWindowResize);
-      setupControls();
-      setupUI();
+        // 지팡이 본체
+        const caneGeo = new THREE.CylinderGeometry(0.015, 0.01, 1.2);
+        caneGeo.translate(0, -0.6, 0); // 피벗 포인트를 손잡이 쪽으로 이동
+        const caneMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const caneMesh = new THREE.Mesh(caneGeo, caneMat);
+        
+        // 지팡이 끝부분 (충돌 감지용 구체)
+        const tipGeo = new THREE.SphereGeometry(0.03);
+        const tipMat = new THREE.MeshBasicMaterial({ color: 0xff0000, visible: false }); // 실제론 안보이게 설정
+        const caneTip = new THREE.Mesh(tipGeo, tipMat);
+        caneTip.position.set(0, -1.2, 0); // 본체 끝에 위치
+        
+        caneMesh.add(caneTip);
+        caneGroup.add(caneMesh);
+        
+        // 지팡이 상태 변수
+        let caneAngleX = 0; 
+        let caneAngleY = 0;
+        let learningMode = false;
+        
+        // --- 6. 입력 및 컨트롤 시스템 ---
+        const keys = { w: false, a: false, s: false, d: false };
+        let isPlaying = false;
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // 마우스(데스크톱) 시점 이동 변수
+        let pitch = 0;
+        let yaw = 0;
 
-      // Render loop
-      animate();
-    }
-
-    /* --- 오디오 시스템 (Web Audio API) --- */
-    function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-
-    function playImpactSound(materialType, panValue) {
-      if (!audioCtx) return;
-
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      const panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-
-      let freq = 300;
-      let decay = 0.1;
-      let type = 'sine';
-
-      // 재질별 다른 합성 음향 효과
-      switch (materialType) {
-        case 'wood':
-          freq = 220; decay = 0.12; type = 'triangle'; break;
-        case 'metal':
-          freq = 800; decay = 0.25; type = 'square'; break;
-        case 'cardboard':
-          freq = 150; decay = 0.08; type = 'sine'; break;
-        case 'wall':
-        default:
-          freq = 400; decay = 0.05; type = 'sine'; break;
-      }
-
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + decay);
-
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
-
-      if (panner) {
-        panner.pan.setValueAtTime(Math.max(-1, Math.min(1, panValue)), audioCtx.currentTime);
-        osc.connect(gain);
-        gain.connect(panner);
-        panner.connect(audioCtx.destination);
-      } else {
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-      }
-
-      osc.start();
-      osc.stop(audioCtx.currentTime + decay);
-    }
-
-    /* --- 지팡이 생성 --- */
-    function createCane() {
-      cane = new THREE.Group();
-      
-      // 손잡이 및 대
-      const shaftGeo = new THREE.CylinderGeometry(0.012, 0.008, 1.3, 16);
-      const shaftMat = new THREE.MeshBasicMaterial({ color: 0xeeeeee });
-      const shaft = new THREE.Mesh(shaftGeo, shaftMat);
-      shaft.position.y = -0.65;
-      cane.add(shaft);
-
-      // 빨간색 하단 팁
-      const tipGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.15, 16);
-      const tipMat = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-      caneTip = new THREE.Mesh(tipGeo, tipMat);
-      caneTip.position.y = -1.25;
-      cane.add(caneTip);
-
-      scene.add(cane);
-    }
-
-    /* --- 복도 및 장애물 생성 --- */
-    function buildEnvironment() {
-      // 벽 재질
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x111116, roughness: 0.8 });
-      const floorMat = new THREE.MeshStandardMaterial({ color: 0x08080c, roughness: 0.5 });
-      const exitMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-
-      // 복도 렌더링 (통로)
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 30), floorMat);
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.set(0, 0, -2);
-      scene.add(floor);
-
-      const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), wallMat);
-      leftWall.rotation.y = Math.PI / 2;
-      leftWall.position.set(-2.5, 2, -2);
-      scene.add(leftWall);
-
-      const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 4), wallMat);
-      rightWall.rotation.y = -Math.PI / 2;
-      rightWall.position.set(2.5, 2, -2);
-      scene.add(rightWall);
-
-      // 벽면 충돌체 등록
-      registerObstacle(leftWall, 'wall', false);
-      registerObstacle(rightWall, 'wall', false);
-
-      // 장애물 생성 함수
-      function addBox(x, y, z, w, h, d, color, materialType) {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.6 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, y + h / 2, z);
-        scene.add(mesh);
-        registerObstacle(mesh, materialType, true);
-      }
-
-      // 배치
-      addBox(-1.5, 0, 8, 0.8, 0.8, 0.8, 0x5c4033, 'wood');     // 나무 상자
-      addBox(1.6, 0, 5, 0.6, 1.1, 0.6, 0x777777, 'metal');     // 캐비넷
-      addBox(-1.4, 0, 1, 1.0, 0.7, 0.6, 0x8b5a2b, 'cardboard'); // 종이상자 그룹
-      addBox(1.2, 0, -3, 0.8, 0.8, 1.2, 0x5c4033, 'wood');     // 책상
-      addBox(-1.0, 0, -7, 0.7, 1.2, 0.7, 0x777777, 'metal');    // 금속 통
-      addBox(1.5, 0, -11, 0.9, 0.9, 0.9, 0x8b5a2b, 'cardboard');
-
-      // 출구 오비젝트
-      const exitGeo = new THREE.BoxGeometry(3, 3, 0.2);
-      exitTrigger = new THREE.Mesh(exitGeo, exitMat);
-      exitTrigger.position.set(0, 1.5, -16);
-      scene.add(exitTrigger);
-    }
-
-    /* --- 장애물 및 선명한 윤곽선(Outline) 등록 --- */
-    function registerObstacle(mesh, materialType, createOutline = true) {
-      let outlineMesh = null;
-
-      if (createOutline) {
-        const edges = new THREE.EdgesGeometry(mesh.geometry);
-        const lineMat = new THREE.LineBasicMaterial({ 
-          color: 0x00f0ff, 
-          linewidth: 2,
-          depthTest: false,
-          transparent: true,
-          opacity: 0
+        // 키보드 이벤트
+        window.addEventListener('keydown', (e) => {
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
+            if(e.key.toLowerCase() === 'm') toggleLearningMode();
         });
-        outlineMesh = new THREE.LineSegments(edges, lineMat);
-        outlineMesh.renderOrder = 999;
-        mesh.add(outlineMesh);
-      }
+        window.addEventListener('keyup', (e) => {
+            if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
+        });
 
-      obstacles.push({
-        mesh: mesh,
-        type: materialType,
-        box: new THREE.Box3().setFromObject(mesh),
-        outline: outlineMesh,
-        outlineOpacity: 0
-      });
-    }
-
-    /* --- 컨트롤 및 이벤트 세팅 --- */
-    function setupControls() {
-      document.addEventListener('keydown', (e) => {
-        if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
-        if (e.code === 'KeyM') toggleMap();
-      });
-      document.addEventListener('keyup', (e) => {
-        if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
-      });
-
-      // Pointer Lock 상태 변화 감지 (튕김 예방 처리)
-      document.addEventListener('pointerlockchange', () => {
-        if (document.pointerLockElement === renderer.domElement) {
-          ignoreNextDelta = true;
-        }
-      });
-
-      // 마우스 이동 처리
-      document.addEventListener('mousemove', (e) => {
-        if (!isGameRunning || document.pointerLockElement !== renderer.domElement) return;
-
-        // Pointer Lock 진입 순간의 과도한 이동량 스파이크 튕김 차단
-        if (ignoreNextDelta) {
-          ignoreNextDelta = false;
-          return;
+        // 모드 토글
+        function toggleLearningMode() {
+            learningMode = !learningMode;
+            document.getElementById('mode-status').innerText = `학습 모드 (기억 유지) : ${learningMode ? 'ON' : 'OFF'} [단축키: M]`;
         }
 
-        let movementX = e.movementX || 0;
-        let movementY = e.movementY || 0;
+        // 데스크톱 마우스 컨트롤 (Pointer Lock)
+        document.addEventListener('mousemove', (e) => {
+            if(document.pointerLockElement === document.body && isPlaying) {
+                // 시점 회전
+                yaw -= e.movementX * 0.002;
+                pitch -= e.movementY * 0.002;
+                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+                
+                // 지팡이 스위핑 로직 (마우스 움직임에 반응)
+                caneAngleX = (e.movementX * 0.05) + (Math.sin(performance.now() * 0.005) * 0.3); // 좌우 흔들기
+                caneAngleY = Math.max(-0.5, Math.min(0.2, (e.movementY * 0.01)));
+            }
+        });
 
-        // 순간 급증 튕김 현상 필터링 (100px 이상 순간이동 무시)
-        if (Math.abs(movementX) > 100 || Math.abs(movementY) > 100) return;
+        // 모바일 터치 컨트롤 (가상 조이스틱)
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const touchPad = document.getElementById('touch-pad');
+        let joyTouchId = null;
+        let padTouchId = null;
+        let lastPadX = 0, lastPadY = 0;
+        let moveVector = new THREE.Vector2(0, 0);
 
-        // 1. 플레이어 회전 (Yaw)
-        player.yaw -= movementX * 0.002;
-        player.pitch -= movementY * 0.0015;
-        player.pitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, player.pitch));
+        joystickZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            joyTouchId = touch.identifier;
+            updateJoystick(touch);
+        });
+        joystickZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                if(e.changedTouches[i].identifier === joyTouchId) updateJoystick(e.changedTouches[i]);
+            }
+        });
+        const resetJoystick = () => {
+            joyTouchId = null;
+            joystickKnob.style.transform = `translate(-50%, -50%)`;
+            moveVector.set(0,0);
+        };
+        joystickZone.addEventListener('touchend', resetJoystick);
+        joystickZone.addEventListener('touchcancel', resetJoystick);
 
-        // 2. 가상 마우스 좌표 업데이트 및 모니터 범위 제한
-        virtualMouse.x = Math.max(0, Math.min(window.innerWidth, virtualMouse.x + movementX));
-        virtualMouse.y = Math.max(0, Math.min(window.innerHeight, virtualMouse.y + movementY));
-
-        const ptr = document.getElementById('virtual-pointer');
-        ptr.style.left = `${virtualMouse.x}px`;
-        ptr.style.top = `${virtualMouse.y}px`;
-
-        document.getElementById('hud-x').innerText = Math.round(virtualMouse.x);
-        document.getElementById('hud-y').innerText = Math.round(virtualMouse.y);
-      });
-    }
-
-    function setupUI() {
-      const startBtn = document.getElementById('start-btn');
-      const restartBtn = document.getElementById('restart-btn');
-      const mapBtn = document.getElementById('map-toggle-btn');
-
-      startBtn.addEventListener('click', startGame);
-      restartBtn.addEventListener('click', startGame);
-      mapBtn.addEventListener('click', toggleMap);
-    }
-
-    function toggleMap() {
-      isMapVisible = !isMapVisible;
-      const mapEl = document.getElementById('minimap');
-      const mapBtn = document.getElementById('map-toggle-btn');
-
-      if (isMapVisible) {
-        mapEl.classList.remove('hidden-map');
-        mapBtn.innerText = "맵 가리기 (M)";
-      } else {
-        mapEl.classList.add('hidden-map');
-        mapBtn.innerText = "맵 보이기 (M)";
-      }
-    }
-
-    function startGame() {
-      initAudio();
-      
-      // 상태 초기화
-      player.position.set(0, 1.6, 12);
-      player.yaw = 0;
-      player.pitch = 0;
-
-      virtualMouse.x = window.innerWidth / 2;
-      virtualMouse.y = window.innerHeight / 2;
-
-      document.getElementById('start-screen').classList.add('hidden');
-      document.getElementById('end-screen').classList.add('hidden');
-      document.getElementById('virtual-pointer').style.display = 'block';
-
-      renderer.domElement.requestPointerLock();
-      isGameRunning = true;
-    }
-
-    function endGame() {
-      isGameRunning = false;
-      document.exitPointerLock();
-      document.getElementById('virtual-pointer').style.display = 'none';
-      document.getElementById('end-screen').classList.remove('hidden');
-    }
-
-    /* --- 물리 및 이동 업데이터 --- */
-    function updatePlayer(dt) {
-      if (!isGameRunning) return;
-
-      const speed = 2.5;
-      const moveDir = new THREE.Vector3();
-
-      if (keys.KeyW) moveDir.z -= 1;
-      if (keys.KeyS) moveDir.z += 1;
-      if (keys.KeyA) moveDir.x -= 1;
-      if (keys.KeyD) moveDir.x += 1;
-
-      moveDir.normalize();
-      moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
-
-      const nextPos = player.position.clone().addScaledVector(moveDir, speed * dt);
-
-      // 벽 및 복도 경계 충돌 처리
-      nextPos.x = Math.max(-2.1, Math.min(2.1, nextPos.x));
-      if (nextPos.z > 13.5) nextPos.z = 13.5;
-
-      player.position.copy(nextPos);
-      camera.position.copy(player.position);
-      camera.rotation.set(0, 0, 0);
-      camera.rotation.y = player.yaw;
-      camera.rotation.x = player.pitch;
-
-      // 출구 도달 판정
-      if (player.position.z < -14.5) {
-        endGame();
-      }
-    }
-
-    /* --- 지팡이 위치 및 충돌 처리 --- */
-    let lastCollisionTime = 0;
-
-    function updateCane() {
-      // 카메라 상대 위치에 지팡이 배치
-      const caneOffset = new THREE.Vector3(0.2, -0.3, -0.5);
-      caneOffset.applyQuaternion(camera.quaternion);
-      cane.position.copy(camera.position).add(caneOffset);
-      cane.rotation.copy(camera.rotation);
-
-      // 지팡이 끝의 월드 좌표 계산
-      const tipWorldPos = new THREE.Vector3();
-      caneTip.getWorldPosition(tipWorldPos);
-
-      // 충돌 검사
-      const now = performance.now();
-      obstacles.forEach(obs => {
-        if (obs.box.containsPoint(tipWorldPos)) {
-          // 윤곽선 활성화 (밝게 켜진 후 서서히 감쇄)
-          obs.outlineOpacity = 1.0;
-
-          // 충돌 음향 쿨다운 (120ms)
-          if (now - lastCollisionTime > 120) {
-            const relPos = tipWorldPos.clone().sub(player.position);
-            relPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), -player.yaw);
-            const pan = relPos.x / 2.0;
-
-            playImpactSound(obs.type, pan);
-            lastCollisionTime = now;
-          }
+        function updateJoystick(touch) {
+            const rect = joystickZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.min(rect.width/2, Math.sqrt(dx*dx + dy*dy));
+            const angle = Math.atan2(dy, dx);
+            
+            const knobX = Math.cos(angle) * distance;
+            const knobY = Math.sin(angle) * distance;
+            
+            joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+            
+            // 정규화 이동 벡터
+            moveVector.set(knobX / (rect.width/2), knobY / (rect.height/2));
         }
 
-        // 윤곽선 페이드아웃 효과 업데이트
-        if (obs.outline && obs.outlineOpacity > 0) {
-          obs.outlineOpacity -= 0.02;
-          obs.outline.material.opacity = Math.max(0, obs.outlineOpacity);
+        // 모바일 터치 시점 및 지팡이 조작
+        touchPad.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            padTouchId = touch.identifier;
+            lastPadX = touch.clientX;
+            lastPadY = touch.clientY;
+        });
+        touchPad.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if(!isPlaying) return;
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if(touch.identifier === padTouchId) {
+                    const movementX = touch.clientX - lastPadX;
+                    const movementY = touch.clientY - lastPadY;
+                    
+                    yaw -= movementX * 0.005;
+                    pitch -= movementY * 0.005;
+                    pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+
+                    // 지팡이 스위핑
+                    caneAngleX = movementX * 0.02;
+                    
+                    lastPadX = touch.clientX;
+                    lastPadY = touch.clientY;
+                }
+            }
+        });
+        const resetTouchPad = () => { padTouchId = null; };
+        touchPad.addEventListener('touchend', resetTouchPad);
+        touchPad.addEventListener('touchcancel', resetTouchPad);
+
+        // --- 7. UI 로직 ---
+        const startScreen = document.getElementById('start-screen');
+        const endScreen = document.getElementById('end-screen');
+        
+        document.getElementById('start-btn').addEventListener('click', () => {
+            initAudio();
+            startScreen.style.display = 'none';
+            isPlaying = true;
+            if(!isMobile) document.body.requestPointerLock();
+        });
+
+        document.getElementById('resume-btn').addEventListener('click', () => {
+            endScreen.style.display = 'none';
+            isPlaying = true;
+            if(!isMobile) document.body.requestPointerLock();
+        });
+        
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // Pointer Lock 해제 시 일시정지 화면 표시
+        document.addEventListener('pointerlockchange', () => {
+            if(document.pointerLockElement !== document.body && !isMobile) {
+                isPlaying = false;
+                if(startScreen.style.display === 'none') endScreen.style.display = 'flex';
+            }
+        });
+
+        // 리사이즈 이벤트
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- 8. 메인 루프 (업데이트 및 렌더링) ---
+        const clock = new THREE.Clock();
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let lastHitTime = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(isPlaying) {
+                const delta = clock.getDelta();
+                const speed = 3.0; // 걷는 속도
+
+                // 카메라 회전 적용
+                camera.rotation.set(pitch, yaw, 0, 'YXZ');
+
+                // 이동 계산
+                direction.z = Number(keys.w) - Number(keys.s) - moveVector.y;
+                direction.x = Number(keys.d) - Number(keys.a) + moveVector.x;
+                direction.normalize();
+
+                if (direction.z !== 0 || direction.x !== 0) {
+                    // 카메라 바라보는 방향 기준으로 이동 벡터 변환
+                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    right.y = 0; right.normalize();
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    forward.y = 0; forward.normalize();
+
+                    velocity.copy(right).multiplyScalar(direction.x)
+                            .add(forward.multiplyScalar(-direction.z));
+                    
+                    camera.position.addScaledVector(velocity, speed * delta);
+                }
+
+                // 이동 범위 제한 (맵 이탈 방지)
+                camera.position.x = Math.max(0, Math.min(13, camera.position.x));
+                camera.position.z = Math.max(-45, Math.min(45, camera.position.z));
+
+                // 지팡이 위치 업데이트 (카메라 시점의 우측 하단에 고정)
+                caneGroup.position.copy(camera.position);
+                caneGroup.quaternion.copy(camera.quaternion);
+                
+                // 손 위치 오프셋
+                caneGroup.translateX(0.3);
+                caneGroup.translateY(-0.5);
+                caneGroup.translateZ(-0.3);
+                
+                // 기본 기울임 + 마우스 조작 각도 부드럽게 적용
+                caneMesh.rotation.x = THREE.MathUtils.lerp(caneMesh.rotation.x, Math.PI / 4 + caneAngleY, 0.1);
+                caneMesh.rotation.z = THREE.MathUtils.lerp(caneMesh.rotation.z, Math.sin(performance.now()*0.002)*0.2 + caneAngleX, 0.1);
+                
+                // 자연스러운 복원력
+                caneAngleX *= 0.9;
+                caneAngleY *= 0.9;
+
+                // --- 9. 충돌 감지 및 윤곽선 피드백 로직 ---
+                // 지팡이 끝(Tip)의 월드 좌표 추출
+                const tipWorldPos = new THREE.Vector3();
+                caneTip.getWorldPosition(tipWorldPos);
+
+                const hitObjects = [];
+                const radius = 0.2; // 충돌 판정 반경
+
+                for(let obj of interactableObjects) {
+                    // 간단한 거리 기반 충돌 (Sphere Collision)
+                    const dist = tipWorldPos.distanceTo(obj.position);
+                    
+                    if(dist < obj.geometry.boundingSphere.radius * obj.scale.x + radius) {
+                        hitObjects.push(obj);
+                        obj.userData.lastTouch = performance.now();
+                        
+                        // 사운드 재생 제어 (중복 재생 방지)
+                        if(performance.now() - lastHitTime > 250) {
+                            // 화면 중앙 기준 좌우(Pan) 위치 계산
+                            const panX = tipWorldPos.clone().project(camera).x;
+                            playSound(obj.userData.material, panX);
+                            lastHitTime = performance.now();
+                        }
+                    }
+                }
+
+                // 윤곽선(OutlinePass) 적용 대상 갱신
+                const selected = [];
+                const nowTime = performance.now();
+                const memoryDuration = learningMode ? 3000 : 200; // 유지 시간(ms)
+
+                for(let obj of interactableObjects) {
+                    if(nowTime - obj.userData.lastTouch < memoryDuration) {
+                        selected.push(obj);
+                    }
+                }
+                outlinePass.selectedObjects = selected;
+            }
+
+            composer.render();
         }
-      });
-    }
 
-    /* --- 미니맵 렌더링 --- */
-    function drawMinimap() {
-      if (!isMapVisible) return;
-
-      const width = mapCanvas.width;
-      const height = mapCanvas.height;
-      const scale = 5; // 스케일 비율 (미터 당 픽셀)
-      const centerX = width / 2;
-      const centerY = height / 2;
-
-      // 배경 초기화
-      mapCtx.clearRect(0, 0, width, height);
-      mapCtx.fillStyle = 'rgba(10, 15, 25, 0.9)';
-      mapCtx.fillRect(0, 0, width, height);
-
-      mapCtx.save();
-      // 플레이어 위치 중심으로 맵 이동 및 회전
-      mapCtx.translate(centerX, centerY);
-      mapCtx.rotate(-player.yaw);
-
-      // 복도 외곽선 그리기
-      mapCtx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
-      mapCtx.lineWidth = 2;
-      mapCtx.strokeRect(-2.5 * scale, (-15 - player.position.z) * scale, 5 * scale, 30 * scale);
-
-      // 장애물 그리기
-      obstacles.forEach(obs => {
-        if (obs.mesh.geometry.type === 'BoxGeometry') {
-          const pos = obs.mesh.position;
-          const params = obs.mesh.geometry.parameters;
-          
-          const relX = (pos.x - player.position.x) * scale;
-          const relZ = (pos.z - player.position.z) * scale;
-          const w = params.width * scale;
-          const d = params.depth * scale;
-
-          if (obs.outlineOpacity > 0.05) {
-            mapCtx.fillStyle = '#00f0ff';
-          } else {
-            mapCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-          }
-          mapCtx.fillRect(relX - w / 2, relZ - d / 2, w, d);
-        }
-      });
-
-      // 출구 표시
-      const exitZ = (-16 - player.position.z) * scale;
-      const exitX = (0 - player.position.x) * scale;
-      mapCtx.fillStyle = '#00f0ff';
-      mapCtx.fillRect(exitX - 15, exitZ - 2, 30, 4);
-
-      // 지팡이 끝점 표시 (분홍색 점)
-      const tipWorldPos = new THREE.Vector3();
-      caneTip.getWorldPosition(tipWorldPos);
-      const tipRelX = (tipWorldPos.x - player.position.x) * scale;
-      const tipRelZ = (tipWorldPos.z - player.position.z) * scale;
-
-      mapCtx.fillStyle = '#ff3366';
-      mapCtx.beginPath();
-      mapCtx.arc(tipRelX, tipRelZ, 3, 0, Math.PI * 2);
-      mapCtx.fill();
-
-      mapCtx.restore();
-
-      // 플레이어 중앙 아이콘 (화살표)
-      mapCtx.fillStyle = '#ffffff';
-      mapCtx.beginPath();
-      mapCtx.arc(centerX, centerY, 4, 0, Math.PI * 2);
-      mapCtx.fill();
-    }
-
-    /* --- 애니메이션 루프 --- */
-    let clock = new THREE.Clock();
-
-    function animate() {
-      requestAnimationFrame(animate);
-
-      const dt = clock.getDelta();
-
-      if (isGameRunning) {
-        updatePlayer(dt);
-        updateCane();
-      }
-
-      drawMinimap();
-      renderer.render(scene, camera);
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    // 실행 시작
-    window.onload = init;
-  </script>
+        // 지오메트리 바운딩 스피어 사전 계산 (충돌 최적화)
+        interactableObjects.forEach(obj => obj.geometry.computeBoundingSphere());
+        
+        animate();
+    </script>
 </body>
 </html>
